@@ -6,6 +6,8 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "arxiv>=2.2.0",
+    "gradio[mcp]>=5.30.0",
     "mcp>=1.12.1",
+    "textblob>=0.19.0",
     "typer>=0.16.0",
 ]
