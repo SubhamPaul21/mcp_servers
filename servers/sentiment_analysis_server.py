@@ -1,9 +1,19 @@
 import json
 import gradio as gr
 from textblob import TextBlob
+from mcp.server.fastmcp import FastMCP
+from pydantic import Field
+
+mcp = FastMCP("SentimentAnalysisMCP", version="1.0.0", log_level="ERROR")
 
 
-def sentiment_analysis(text: str) -> str:
+@mcp.tool(
+    name="sentiment_analysis",
+    description="Analyze the sentiment of the input text using TextBlob.",
+)
+def sentiment_analysis(
+    text: str = Field(description="The input text to analyze"),
+) -> str:
     """Perform sentiment analysis on the input text.
     Args:
         text (str): The input text to analyze.
@@ -38,4 +48,5 @@ demo = gr.Interface(
 
 # Launch the Gradio interface
 if __name__ == "__main__":
-    demo.launch(mcp_server=True)
+    # demo.launch(mcp_server=True)
+    mcp.run(transport="stdio")
