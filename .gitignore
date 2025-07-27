@@ -11,3 +11,6 @@ wheels/
 papers
 .env
 .vscode
+.continue
+main.py
+groq_main.py
