@@ -19,53 +19,64 @@ PR_TEMPLATE_DIR = Path(__file__).parent.parent / "pr_templates"
     description="Get the full diff and list of changed files in the current git repository.",
 )
 def analyze_file_changes(
-    base_branch: str = "main",
     include_diff: bool = True,
-    max_diff_lines: int = 500,
+    max_diff_lines: int = 1000,
 ) -> str:
     """Get the full diff and list of changed files in the current git repository.
 
     Args:
-        base_branch: Base branch to compare against (default: main)
         include_diff: Include the full diff content (default: True)
         max_diff_lines: Maximum number of diff lines to include (default: 500)
+
+    Output:
+        {
+        "changed_files": [...],
+        "diff": "patch text",
+        "diff_line_count": N,
+        "truncated": false
+        }
     """
-    result = {"changed_files": [], "diff": "", "truncated": False, "diff_line_count": 0}
+    result = {
+        "changed_files": [],
+        "diff": "",
+        "diff_line_count": 0,
+        "truncated": False,
+        "error": None,
+    }
+
     try:
-        # List changed files between current HEAD and base_branch
+        # 1. filenames
         files_proc = subprocess.run(
-            ["git", "diff", "--name-only", f"{base_branch}...HEAD"],
+            ["git", "diff", "--cached", "--name-only"],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
             check=True,
         )
-        changed_files = [f.strip() for f in files_proc.stdout.splitlines() if f.strip()]
-        result["changed_files"] = changed_files
+        result["changed_files"] = [
+            f for f in files_proc.stdout.splitlines() if f.strip()
+        ]
 
         if include_diff:
+            # 2. patch
             diff_proc = subprocess.run(
-                ["git", "diff", f"{base_branch}...HEAD"],
+                ["git", "diff", "--cached"],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
                 check=True,
             )
-            diff_lines = diff_proc.stdout.splitlines()
-            total_lines = len(diff_lines)
-            result["diff_line_count"] = total_lines
-            if total_lines > max_diff_lines:
-                result["diff"] = "\n".join(diff_lines[:max_diff_lines])
+            lines = diff_proc.stdout.splitlines()
+            result["diff_line_count"] = len(lines)
+
+            if len(lines) > max_diff_lines:
+                result["diff"] = "\n".join(lines[:max_diff_lines])
                 result["truncated"] = True
-                result["truncated_message"] = (
-                    f"Diff output truncated at {max_diff_lines} lines "
-                    f"(total lines: {total_lines})."
-                )
             else:
                 result["diff"] = diff_proc.stdout
 
     except subprocess.CalledProcessError as e:
-        result = {"error": str(e), "stderr": e.stderr}
+        result["error"] = e.stderr.strip() or str(e)
 
     return json.dumps(result)
 
@@ -191,4 +202,4 @@ def suggest_template(
 
 
 if __name__ == "__main__":
-    mcp.run(transport="sse")
+    mcp.run(transport="stdio")
