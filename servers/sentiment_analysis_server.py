@@ -1,6 +1,10 @@
 import json
 from textblob import TextBlob
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
+import logging
+import sys
+
+logging.basicConfig(level=logging.INFO, stream=sys.stderr)
 
 # from pydantic import Field
 mcp = FastMCP("sentiment-analysis")
@@ -32,6 +36,12 @@ def sentiment_analysis(text: str) -> str:
     return json.dumps(result)
 
 
-# Start the server
 if __name__ == "__main__":
-    mcp.run(transport="stdio")
+    # Initialize and run the server
+    logging.info("Sentiment Analysis Server starting...")
+    mcp.run(
+        transport="streamable-http",  # alias "http" also works[76]
+        host="127.0.0.1",
+        port=8001,
+        log_level="info",
+    )

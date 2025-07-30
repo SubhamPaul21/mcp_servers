@@ -3,9 +3,13 @@ import os
 import asyncio
 import subprocess
 from pathlib import Path
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 from typing import Dict, List
 from pydantic import Field
+import logging
+import sys
+
+logging.basicConfig(level=logging.INFO, stream=sys.stderr)
 
 # Initialize the FastMCP server
 mcp = FastMCP("pr-agent")
@@ -202,4 +206,11 @@ def suggest_template(
 
 
 if __name__ == "__main__":
-    mcp.run(transport="stdio")
+    # Initialize and run the server
+    logging.info("Pull Request Agent Server starting...")
+    mcp.run(
+        transport="streamable-http",  # alias "http" also works[76]
+        host="127.0.0.1",
+        port=8002,
+        log_level="info",
+    )
