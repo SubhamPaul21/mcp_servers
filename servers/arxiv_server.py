@@ -2,25 +2,20 @@ import arxiv
 import json
 import os
 from typing import List
-from mcp.server.fastmcp import FastMCP
-from pydantic import Field
+from fastmcp import FastMCP
+import sys
+import logging
+
+logging.basicConfig(level=logging.INFO, stream=sys.stderr)
 
 PAPER_DIR = "papers"
 
 # Initialize FastMCP server
-mcp = FastMCP("ArxivResearchMCP", version="1.0.0", log_level="ERROR")
+mcp = FastMCP("ArxivServer")
 
 
-@mcp.tool(
-    name="search_papers",
-    description="Search for papers on arXiv based on a topic and store their information.",
-)
-def search_papers(
-    topic: str = Field(description="The topic to search for"),
-    max_results: int = Field(
-        description="Maximum number of results to retrieve", default=5
-    ),
-) -> List[str]:
+@mcp.tool()
+def search_papers(topic: str, max_results: int = 5) -> List[str]:
     """
     Search for papers on arXiv based on a topic and store their information.
     Args:
@@ -70,18 +65,11 @@ def search_papers(
     with open(file_path, "w") as json_file:
         json.dump(papers_info, json_file, indent=2)
 
-    print(f"Results are saved in: {file_path}")
-
     return paper_ids
 
 
-@mcp.tool(
-    name="extract_info",
-    description="Extract information about a specific paper by its ID across all topic directories.",
-)
-def extract_info(
-    paper_id: str = Field(description="The ID of the paper to look for"),
-) -> str:
+@mcp.tool()
+def extract_info(paper_id: str) -> str:
     """
     Search for information about a specific paper across all topic directories.
     Args:
@@ -101,7 +89,6 @@ def extract_info(
                         if paper_id in papers_info:
                             return json.dumps(papers_info[paper_id], indent=2)
                 except (FileNotFoundError, json.JSONDecodeError) as e:
-                    print(f"Error reading {file_path}: {str(e)}")
                     continue
 
     return f"There's no saved information related to paper {paper_id}."
@@ -143,9 +130,7 @@ def get_available_folders() -> str:
     "papers://{topic}",
     mime_type="text/markdown",
 )
-def get_topic_papers(
-    topic: str = Field(desctipion="The research topic to retrieve papers for"),
-) -> str:
+def get_topic_papers(topic: str) -> str:
     """
     Get detailed information about papers on a specific topic.
     Args:
@@ -181,17 +166,13 @@ def get_topic_papers(
         return f"# Error reading papers data for {topic}\n\nThe papers data file is corrupted."
 
 
-@mcp.prompt(
-    name="generate_search_prompt",
-    description="Generate a prompt for the LLM to find and discuss academic papers on a specific topic.",
-)
-def generate_search_prompt(
-    topic: str = Field(description="The topic to search for"),
-    num_papers: int = Field(
-        description="Maximum number of results to retrieve", default=5
-    ),
-) -> str:
-    """Generate a prompt for the LLM to find and discuss academic papers on a specific topic."""
+@mcp.prompt()
+def generate_search_prompt(topic: str, num_papers: int = 5) -> str:
+    """Generate a prompt for the LLM to find and discuss academic papers on a specific topic.
+    Args:
+        topic: The research topic to retrieve papers for
+        num_papers: The maximum number of papers to retrieve
+    """
     return f"""Search for {num_papers} academic papers about '{topic}' using the search_papers tool. Follow these instructions:
     1. First, search for papers using search_papers(topic='{topic}', max_results={num_papers})
     2. For each paper found, extract and organize the following information:
@@ -216,4 +197,10 @@ def generate_search_prompt(
 
 if __name__ == "__main__":
     # Initialize and run the server
-    mcp.run(transport="stdio")
+    logging.info("Arxiv Server starting...")
+    mcp.run(
+        transport="streamable-http",  # alias "http" also works[76]
+        host="127.0.0.1",
+        port=8000,
+        log_level="info",
+    )
